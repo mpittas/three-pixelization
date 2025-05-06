@@ -2,10 +2,10 @@ import { Suspense, useMemo, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
-import { DirectionalLightHelper } from "three";
+import { DirectionalLightHelper, HemisphereLightHelper } from "three";
 
 // Component to load and display your 3D model
-function Model(props: any) {
+function Model(props: any & { showDebugHelpers?: boolean }) {
   const { scene: loadedGLTFScene } = useGLTF("/model.glb");
 
   // This useMemo hook processes the model once it's loaded.
@@ -51,34 +51,45 @@ function Model(props: any) {
   return (
     <group {...props}>
       <primitive object={centeredModelNode} />
-      {boxHelper && <primitive object={boxHelper} />}
+      {/* Conditionally render BoxHelper based on prop */}
+      {props.showDebugHelpers && boxHelper && <primitive object={boxHelper} />}
     </group>
   );
 }
 
 export default function MyScene() {
   const directionalLightRef = useRef<THREE.DirectionalLight>(null!);
+  const hemisphereLightRef = useRef<THREE.HemisphereLight>(null!);
+
+  // Single toggle for all debug helpers
+  const enableDebugHelpers = false; // Set to false to hide all helpers
 
   return (
     <Canvas
       style={{ height: "100vh", width: "100vw", backgroundColor: "#d3eae0" }}
       camera={{ position: [0, 1, 4], fov: 40 }}
     >
-      {/* Ambient light to illuminate all objects in the scene equally */}
-      <ambientLight intensity={2.75} />
+      <ambientLight intensity={0.8} />
 
-      {/* Directional light to simulate a light source like the sun */}
+      <hemisphereLight
+        ref={hemisphereLightRef}
+        args={[0xadd8e6, 0x8f8f8f]}
+        intensity={3}
+      />
+      {enableDebugHelpers && hemisphereLightRef.current && (
+        <primitive
+          object={
+            new HemisphereLightHelper(hemisphereLightRef.current, 1, 0x0000ff)
+          }
+        />
+      )}
+
       <directionalLight
         ref={directionalLightRef}
-        // position={[x, y, z]} where:
-        // x: 5 units to the right from center
-        // y: 80 units up from center
-        // z: 5 units forward from center
         position={[2, 3, 2]}
-        intensity={1.8}
+        intensity={1.3}
       />
-      {/* Render DirectionalLightHelper if the ref is set */}
-      {directionalLightRef.current && (
+      {enableDebugHelpers && directionalLightRef.current && (
         <primitive
           object={
             new DirectionalLightHelper(directionalLightRef.current, 1, 0xff0000)
@@ -88,7 +99,12 @@ export default function MyScene() {
 
       {/* Suspense is needed because useGLTF loads the model asynchronously */}
       <Suspense fallback={null}>
-        <Model scale={1} position={[0, 0, 0]} />
+        {/* Pass enableDebugHelpers to the Model component */}
+        <Model
+          scale={1}
+          position={[0, 0, 0]}
+          showDebugHelpers={enableDebugHelpers}
+        />
       </Suspense>
 
       {/* OrbitControls allow you to rotate, pan, and zoom the camera */}
