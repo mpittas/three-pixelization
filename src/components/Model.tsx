@@ -19,6 +19,7 @@ const easeInOuQuad = (t: number) =>
 
 // Define explicit props for clarity, extend with R3FGroupProps for standard group attributes
 interface ModelOwnProps {
+  modelPath: string; // Path to the .glb model file
   showDebugHelpers?: boolean;
   // finalScale is the target scale after animation. If not provided, defaults to 1 in logic below.
   finalScale?: number | [number, number, number];
@@ -33,7 +34,7 @@ type ModelCombinedProps = ModelOwnProps &
   Omit<ThreeElements["group"], "scale" | "onPointerOver" | "onPointerOut">;
 
 export function Model(props: ModelCombinedProps) {
-  const { scene: loadedGLTFScene } = useGLTF("/model.glb");
+  const { scene: loadedGLTFScene } = useGLTF(props.modelPath);
 
   const [animatedScale, setAnimatedScale] = useState(INITIAL_ANIMATION_SCALE);
   const animationCompletedRef = useRef(false);
@@ -54,6 +55,7 @@ export function Model(props: ModelCombinedProps) {
   const boundingBoxDimensions = useRef<{
     size: THREE.Vector3;
     center: THREE.Vector3;
+    fitScale: number;
   } | null>(null);
 
   useFrame((_, delta) => {
@@ -108,8 +110,12 @@ export function Model(props: ModelCombinedProps) {
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
 
+    // Calculate fitScale so the largest dimension is 2 units
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fitScale = maxDim > 0 ? 2 / maxDim : 1;
+
     // Store dimensions for the hover box
-    boundingBoxDimensions.current = { size, center: center.clone() }; // Store a clone of center
+    boundingBoxDimensions.current = { size, center: center.clone(), fitScale };
 
     modelNode.position.sub(center);
     modelNode.traverse((child) => {
@@ -136,23 +142,37 @@ export function Model(props: ModelCombinedProps) {
   const {
     showDebugHelpers,
     finalScale,
+    modelPath,
     onPointerOver,
     onPointerOut,
     ...restGroupProps
   } = props;
 
+  // Calculate the group scale, always as a 3-element array
+  let groupScale: [number, number, number] = [1, 1, 1];
+  if (boundingBoxDimensions.current) {
+    const fitScale = boundingBoxDimensions.current.fitScale;
+    if (Array.isArray(finalScale)) {
+      groupScale = [
+        (finalScale[0] ?? 1) * fitScale,
+        (finalScale[1] ?? 1) * fitScale,
+        (finalScale[2] ?? 1) * fitScale,
+      ];
+    } else {
+      groupScale = [
+        animatedScale * fitScale,
+        animatedScale * fitScale,
+        animatedScale * fitScale,
+      ];
+    }
+  }
+
   return (
-    <group {...restGroupProps} scale={animatedScale} ref={groupRef}>
+    <group {...restGroupProps} scale={groupScale} ref={groupRef}>
       {/* Invisible mesh for bounding box hover detection */}
       {boundingBoxDimensions.current && (
         <mesh
-          // Position this invisible box at the original center of the un-centered model,
-          // because the group itself is already where the model should be.
-          // The centeredModelNode has its geometry centered, so the hover box should align with that concept.
-          // The boundingBoxDimensions.current.center was calculated *before* modelNode.position.sub(center).
-          // Since the modelNode is now centered at its local origin (0,0,0) inside the group,
-          // the hover box should also be centered at (0,0,0) relative to the group to match.
-          position={[0, 0, 0]} // Center of the original bounding box relative to the group
+          position={[0, 0, 0]}
           onPointerOver={onPointerOver}
           onPointerOut={onPointerOut}
         >

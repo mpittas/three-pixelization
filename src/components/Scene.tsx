@@ -9,7 +9,15 @@ import { EffectComposer } from "@react-three/postprocessing";
 import Model from "./Model"; // Assuming Model.tsx exports Model as default
 import { PixelationMaskEffect } from "../effects/PixelationMaskEffect"; // Import the effect
 
-export default function MyScene() {
+interface MySceneProps {
+  currentModelPath: string;
+  currentModelScale: number;
+}
+
+export default function MyScene({
+  currentModelPath,
+  currentModelScale,
+}: MySceneProps) {
   const directionalLightRef = useRef<THREE.DirectionalLight>(null!);
   const hemisphereLightRef = useRef<THREE.HemisphereLight>(null!);
   const enableDebugHelpers = false;
@@ -121,9 +129,10 @@ export default function MyScene() {
           {/* Use the imported Model component */}
           {/* Pass finalScale if you want to control the target scale from here, e.g., finalScale={1} */}
           <Model
+            modelPath={currentModelPath}
             position={[0, 0, 0]}
             showDebugHelpers={enableDebugHelpers}
-            finalScale={1}
+            finalScale={currentModelScale}
             onPointerOver={() => setIsModelHovered(true)}
             onPointerOut={() => setIsModelHovered(false)}
           />
@@ -138,10 +147,10 @@ export default function MyScene() {
 
         <EffectComposer>
           <PixelationMaskEffect
-            granularity={10}
+            granularity={15}
             mousePosition={mousePositionVec2}
             isModelHovered={isModelHovered}
-            circleRadius={125} // Half the diameter (250/2)
+            circleRadius={160} // Increased radius for a bigger mask
           />
         </EffectComposer>
       </Canvas>
