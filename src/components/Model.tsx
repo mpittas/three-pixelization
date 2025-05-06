@@ -9,9 +9,13 @@ const INITIAL_ANIMATION_SCALE = 0.01;
 const OVERSHOOT_SCALE_FACTOR = 1.05;
 const OVERSHOOT_DURATION = 0.25;
 const SETTLE_DURATION = 0.2;
+const TOTAL_ANIMATION_DURATION = OVERSHOOT_DURATION + SETTLE_DURATION;
 
 // Default Easing Function: Ease-out quadratic
 const easeOutQuad = (t: number) => t * (2 - t);
+// Custom easing for the settle phase (can be same as easeOutQuad or different)
+const easeInOuQuad = (t: number) =>
+  t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 
 // Define explicit props for clarity, extend with R3FGroupProps for standard group attributes
 interface ModelOwnProps {
@@ -32,10 +36,8 @@ export function Model(props: ModelCombinedProps) {
   const { scene: loadedGLTFScene } = useGLTF("/model.glb");
 
   const [animatedScale, setAnimatedScale] = useState(INITIAL_ANIMATION_SCALE);
-  const animationPhaseRef = useRef<"overshoot" | "settle" | "done">(
-    "overshoot"
-  );
-  const elapsedTimeInPhaseRef = useRef(0);
+  const animationCompletedRef = useRef(false);
+  const animationTimeRef = useRef(0);
   const groupRef = useRef<THREE.Group>(null!);
 
   // Determine final target scale based on finalScale prop, defaulting to 1
@@ -43,7 +45,7 @@ export function Model(props: ModelCombinedProps) {
   if (typeof props.finalScale === "number") {
     targetScaleValue = props.finalScale;
   } else if (Array.isArray(props.finalScale)) {
-    targetScaleValue = props.finalScale[0];
+    targetScaleValue = props.finalScale[0]; // Assuming uniform scaling for simplicity if array
   }
 
   const actualOvershootScale = targetScaleValue * OVERSHOOT_SCALE_FACTOR;
@@ -55,38 +57,39 @@ export function Model(props: ModelCombinedProps) {
   } | null>(null);
 
   useFrame((_, delta) => {
-    // --- Scale Animation Logic ---
-    if (animationPhaseRef.current !== "done" && loadedGLTFScene) {
-      elapsedTimeInPhaseRef.current += delta;
+    // --- Scale Animation Logic (Simplified) ---
+    if (!animationCompletedRef.current && loadedGLTFScene) {
+      animationTimeRef.current += delta;
       let currentVal = animatedScale;
+      const totalProgress = Math.min(
+        animationTimeRef.current / TOTAL_ANIMATION_DURATION,
+        1
+      );
 
-      if (animationPhaseRef.current === "overshoot") {
-        const progress = Math.min(
-          elapsedTimeInPhaseRef.current / OVERSHOOT_DURATION,
+      if (animationTimeRef.current <= OVERSHOOT_DURATION) {
+        // Overshoot phase
+        const overshootProgress = Math.min(
+          animationTimeRef.current / OVERSHOOT_DURATION,
           1
         );
-        const easedProgress = easeOutQuad(progress);
+        const easedProgress = easeOutQuad(overshootProgress);
         currentVal =
           INITIAL_ANIMATION_SCALE +
           (actualOvershootScale - INITIAL_ANIMATION_SCALE) * easedProgress;
-        if (progress >= 1) {
-          animationPhaseRef.current = "settle";
-          elapsedTimeInPhaseRef.current = 0;
-          currentVal = actualOvershootScale;
-        }
-      } else if (animationPhaseRef.current === "settle") {
-        const progress = Math.min(
-          elapsedTimeInPhaseRef.current / SETTLE_DURATION,
-          1
-        );
-        const easedProgress = easeOutQuad(progress);
+      } else {
+        // Settle phase (time relative to start of settle phase)
+        const settleTime = animationTimeRef.current - OVERSHOOT_DURATION;
+        const settleProgress = Math.min(settleTime / SETTLE_DURATION, 1);
+        // Using a different easing for the settle part for a more distinct bounce
+        const easedProgress = easeInOuQuad(settleProgress);
         currentVal =
           actualOvershootScale +
           (targetScaleValue - actualOvershootScale) * easedProgress;
-        if (progress >= 1) {
-          animationPhaseRef.current = "done";
-          currentVal = targetScaleValue;
-        }
+      }
+
+      if (totalProgress >= 1) {
+        animationCompletedRef.current = true;
+        currentVal = targetScaleValue; // Ensure final scale is exact
       }
       setAnimatedScale(currentVal);
     }
