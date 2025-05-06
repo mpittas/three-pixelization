@@ -24,7 +24,7 @@ const fragmentShader = `
     float dist = distance(fragPixelCoord, correctedMousePosition);
     
     // Define border width (in pixels)
-    float borderWidth = 4.0;
+    float borderWidth = 2.0;
     
     // Check if pixel is within the border area
     bool isInBorder = dist > circleRadius - borderWidth && dist < circleRadius;

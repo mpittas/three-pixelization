@@ -90,15 +90,15 @@ export default function MyScene({
           castShadow
           position={[1.5, 3, 2]}
           intensity={-1}
-          shadow-mapSize-width={100}
-          shadow-mapSize-height={100}
+          shadow-mapSize-width={1024}
+          shadow-mapSize-height={1024}
           shadow-camera-near={4.4}
           shadow-camera-far={10}
           shadow-camera-left={-10}
           shadow-camera-right={10}
           shadow-camera-top={10}
           shadow-camera-bottom={-10}
-          shadow-bias={0.5}
+          shadow-bias={-0.005}
         />
         {enableDebugHelpers && directionalLightRef.current && (
           <primitive
@@ -130,7 +130,7 @@ export default function MyScene({
           {/* Pass finalScale if you want to control the target scale from here, e.g., finalScale={1} */}
           <Model
             modelPath={currentModelPath}
-            position={[0, 0, 0]}
+            position={[0, 0.0, 0]}
             showDebugHelpers={enableDebugHelpers}
             finalScale={currentModelScale}
             onPointerOver={() => setIsModelHovered(true)}
@@ -139,6 +139,7 @@ export default function MyScene({
         </Suspense>
 
         <OrbitControls
+          target={[0, -0.2, 0]}
           enableZoom={false}
           enablePan={false}
           minPolarAngle={Math.PI / 2}
@@ -147,7 +148,7 @@ export default function MyScene({
 
         <EffectComposer>
           <PixelationMaskEffect
-            granularity={15}
+            granularity={10}
             mousePosition={mousePositionVec2}
             isModelHovered={isModelHovered}
             circleRadius={160} // Increased radius for a bigger mask
