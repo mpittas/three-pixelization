@@ -18,11 +18,15 @@ interface ModelOwnProps {
   showDebugHelpers?: boolean;
   // finalScale is the target scale after animation. If not provided, defaults to 1 in logic below.
   finalScale?: number | [number, number, number];
+  // Add onPointerOver and onPointerOut for hover detection on bounding box
+  onPointerOver?: (event: any) => void;
+  onPointerOut?: (event: any) => void;
 }
 
 // Combine our own props with standard R3F group props (from JSX.IntrinsicElements)
 // Omit 'scale' as we manage it internally for animation.
-type ModelCombinedProps = ModelOwnProps & Omit<ThreeElements["group"], "scale">;
+type ModelCombinedProps = ModelOwnProps &
+  Omit<ThreeElements["group"], "scale" | "onPointerOver" | "onPointerOut">;
 
 export function Model(props: ModelCombinedProps) {
   const { scene: loadedGLTFScene } = useGLTF("/model.glb");
@@ -39,9 +43,16 @@ export function Model(props: ModelCombinedProps) {
   if (typeof props.finalScale === "number") {
     targetScaleValue = props.finalScale;
   } else if (Array.isArray(props.finalScale)) {
+    targetScaleValue = props.finalScale[0];
   }
 
   const actualOvershootScale = targetScaleValue * OVERSHOOT_SCALE_FACTOR;
+
+  // Store bounding box dimensions for the invisible hover mesh
+  const boundingBoxDimensions = useRef<{
+    size: THREE.Vector3;
+    center: THREE.Vector3;
+  } | null>(null);
 
   useFrame((_, delta) => {
     // --- Scale Animation Logic ---
@@ -91,7 +102,12 @@ export function Model(props: ModelCombinedProps) {
     if (!loadedGLTFScene) return null;
     const modelNode = loadedGLTFScene.clone();
     const box = new THREE.Box3().setFromObject(modelNode);
+    const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
+
+    // Store dimensions for the hover box
+    boundingBoxDimensions.current = { size, center: center.clone() }; // Store a clone of center
+
     modelNode.position.sub(center);
     modelNode.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
@@ -109,15 +125,45 @@ export function Model(props: ModelCombinedProps) {
     return null;
   }, [centeredModelNode]);
 
-  if (!centeredModelNode) {
+  if (!centeredModelNode || !boundingBoxDimensions.current) {
     return null;
   }
 
   // Destructure our own props, rest are standard group props to be spread
-  const { showDebugHelpers, finalScale, ...restGroupProps } = props;
+  const {
+    showDebugHelpers,
+    finalScale,
+    onPointerOver,
+    onPointerOut,
+    ...restGroupProps
+  } = props;
 
   return (
     <group {...restGroupProps} scale={animatedScale} ref={groupRef}>
+      {/* Invisible mesh for bounding box hover detection */}
+      {boundingBoxDimensions.current && (
+        <mesh
+          // Position this invisible box at the original center of the un-centered model,
+          // because the group itself is already where the model should be.
+          // The centeredModelNode has its geometry centered, so the hover box should align with that concept.
+          // The boundingBoxDimensions.current.center was calculated *before* modelNode.position.sub(center).
+          // Since the modelNode is now centered at its local origin (0,0,0) inside the group,
+          // the hover box should also be centered at (0,0,0) relative to the group to match.
+          position={[0, 0, 0]} // Center of the original bounding box relative to the group
+          onPointerOver={onPointerOver}
+          onPointerOut={onPointerOut}
+        >
+          <boxGeometry
+            args={[
+              boundingBoxDimensions.current.size.x,
+              boundingBoxDimensions.current.size.y,
+              boundingBoxDimensions.current.size.z,
+            ]}
+          />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
+      )}
+
       <primitive object={centeredModelNode} />
       {showDebugHelpers && boxHelper && <primitive object={boxHelper} />}
     </group>
