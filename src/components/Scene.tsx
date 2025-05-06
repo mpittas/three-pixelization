@@ -2,7 +2,7 @@ import { Suspense, useMemo, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
-import { DirectionalLightHelper, PointLightHelper } from "three";
+import { DirectionalLightHelper } from "three";
 
 // Component to load and display your 3D model
 function Model(props: any) {
