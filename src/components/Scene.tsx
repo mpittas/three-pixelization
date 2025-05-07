@@ -151,10 +151,14 @@ export default function MyScene({
 
         <EffectComposer>
           <PixelationMaskEffect
-            granularity={10}
+            granularity={12}
             mousePosition={mousePositionVec2}
             isModelHovered={isModelHovered}
-            circleRadius={100} // Increased radius for a bier mask
+            circleRadius={120}
+            blurRadius={0}
+            fisheyeStrength={0.1}
+            edgeWarpAmplitude={6.0}
+            edgeWarpFrequency={0.0}
           />
         </EffectComposer>
       </Canvas>

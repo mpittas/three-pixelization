@@ -10,16 +10,16 @@ const models = [
     path: "/models/dae_villages__ancient_greek_bakery.glb",
     scale: 1.1,
   },
-  // {
-  //   name: "cyberpunk_laptop_concept_design.glb",
-  //   path: "/models/cyberpunk_laptop_concept_design.glb",
-  //   scale: 1,
-  // },
-  // {
-  //   name: "Fiat Punto GT (1995)",
-  //   path: "/models/sony_fx_300_-_jackal.glb",
-  //   scale: 1,
-  // },
+  {
+    name: "Little Hermit Crab",
+    path: "/models/little_hermit_crab.glb",
+    scale: 1,
+  },
+  {
+    name: "Portal Traveling",
+    path: "/models/portal_traveling.glb",
+    scale: 1.2,
+  },
 ];
 
 function App() {
@@ -36,7 +36,7 @@ function App() {
           transform: "translateX(-50%)",
           zIndex: 1,
           display: "flex",
-          gap: "14px",
+          gap: "12px",
         }}
       >
         {models.map((model, index) => (
@@ -54,7 +54,7 @@ function App() {
               border: "none",
               borderRadius: "999px",
               fontWeight: 600,
-              fontSize: "1rem",
+              fontSize: "0.875rem",
               boxShadow:
                 currentModel.path === model.path
                   ? "0 2px 12px rgba(0,0,0,0.18)"

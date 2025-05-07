@@ -8,41 +8,67 @@ const fragmentShader = `
   uniform vec2 mousePosition; // DOM pixel coords, Y is 0 at top
   uniform float isModelHovered;
   uniform float circleRadius; // in pixels
+  uniform float blurRadius;   // in pixels, for the smoothstep transition edge
+  uniform float fisheyeStrength;  // e.g., 0.1 to 0.5
+  uniform float edgeWarpAmplitude;// in pixels, e.g., 0.0 to 10.0
+  uniform float edgeWarpFrequency;// e.g., 5.0 to 20.0
 
   void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
     vec2 screenSize = resolution; // Shader resolution, Y is height
     vec2 dxy = granularity / screenSize;
     vec2 pixelatedUv = dxy * floor(uv / dxy);
     
-    // Correct mouse Y-coordinate: DOM Y is top-down, shader UV/pixel Y is bottom-up
-    vec2 correctedMousePosition = vec2(mousePosition.x, screenSize.y - mousePosition.y);
-    
-    // Fragment's coordinate in pixels (origin bottom-left)
-    vec2 fragPixelCoord = uv * screenSize;
-    
-    // Calculate distance directly in pixel space
-    float dist = distance(fragPixelCoord, correctedMousePosition);
-    
-    // Define border width (in pixels)
-    float borderWidth = 0.0;
-    
-    // Check if pixel is within the border area
-    bool isInBorder = dist > circleRadius - borderWidth && dist < circleRadius;
-    
+    vec2 correctedMousePosition = vec2(mousePosition.x, screenSize.y - mousePosition.y); // Pixel coords
+    vec2 fragPixelCoord = uv * screenSize; // Current fragment in pixel coords
+
+    // --- 1. Calculate distance and apply edge warping to it for the mask alpha ---
+    vec2 diff_vec_pixels = fragPixelCoord - correctedMousePosition;
+    float dist_pixels = length(diff_vec_pixels);
+
+    float warped_dist_for_mask = dist_pixels;
+    if (edgeWarpAmplitude > 0.0 && edgeWarpFrequency > 0.0 && dist_pixels > 0.001) {
+        float angle = atan(diff_vec_pixels.y, diff_vec_pixels.x);
+        float warp_offset = sin(angle * edgeWarpFrequency) * edgeWarpAmplitude;
+        warped_dist_for_mask = dist_pixels + warp_offset;
+    }
+
+    // Alpha for mixing between original (possibly fisheyed) and pixelated
+    // This uses the warped distance, so the mask edge itself is warped.
+    float maskAlpha = smoothstep(
+        circleRadius - blurRadius, // Inner edge of transition
+        circleRadius + blurRadius, // Outer edge of transition
+        warped_dist_for_mask
+    );
+
+    // --- 2. Calculate UVs for sampling the "original" color, possibly with fisheye ---
+    vec2 sample_uv = uv; // Default to current fragment's UV
+
+    // Apply fisheye if the fragment is within the circle's nominal radius
+    // and fisheyeStrength is positive.
+    if (fisheyeStrength > 0.0 && dist_pixels < circleRadius) {
+        vec2 mouse_uv_coords = correctedMousePosition / screenSize; // Mouse position in UV space (0-1)
+        vec2 centered_frag_uv = uv - mouse_uv_coords; // Vector from mouse to current fragment in UV space
+        float r_uv = length(centered_frag_uv); // Distance from mouse in UV space
+
+        // Strength of fisheye falls off from center to edge of circleRadius
+        float normalized_dist_from_center_pixels = clamp(dist_pixels / circleRadius, 0.0, 1.0);
+        float current_actual_fisheye_strength = fisheyeStrength * (1.0 - pow(normalized_dist_from_center_pixels, 2.0));
+
+        if (r_uv > 0.0001 && current_actual_fisheye_strength > 0.0) {
+            // Fisheye effect: scales the vector from mouse, sampling closer to mouse for magnification.
+            vec2 distorted_centered_uv = centered_frag_uv * (1.0 - current_actual_fisheye_strength);
+            sample_uv = mouse_uv_coords + distorted_centered_uv;
+        }
+    }
+
+    // --- 3. Get colors and mix ---
+    vec4 originalEffectedColor = texture2D(inputBuffer, sample_uv);
+    vec4 pixelatedColor = texture2D(inputBuffer, pixelatedUv);
+
     if (isModelHovered > 0.5) {
-      if (isInBorder && borderWidth > 0.0) { // Only draw border if width > 0
-        // Draw white border when hovering model
-        outputColor = vec4(1.0, 1.0, 1.0, 1.0);
-      } else if (dist < circleRadius) {
-        // Inside circle (not border) - no pixelation
-        outputColor = texture2D(inputBuffer, uv);
-      } else {
-        // Outside circle - apply pixelation
-        outputColor = texture2D(inputBuffer, pixelatedUv);
-      }
+        outputColor = mix(originalEffectedColor, pixelatedColor, maskAlpha);
     } else {
-      // Not hovering model - apply pixelation everywhere
-      outputColor = texture2D(inputBuffer, pixelatedUv);
+        outputColor = pixelatedColor; // Not hovered, fully pixelated
     }
   }
 `;
@@ -54,6 +80,10 @@ class PixelationMaskEffectImpl extends Effect {
     mousePosition = new THREE.Vector2(),
     isModelHovered = false,
     circleRadius = 125,
+    blurRadius = 20, // Default from previous edit
+    fisheyeStrength = 0.0, // Default to no fisheye
+    edgeWarpAmplitude = 0.0, // Default to no warp
+    edgeWarpFrequency = 10.0, // Default frequency if amplitude > 0
   }) {
     // Create uniforms with type casting to avoid TypeScript errors
     const uniformsMap = new Map();
@@ -64,6 +94,10 @@ class PixelationMaskEffectImpl extends Effect {
       new THREE.Uniform(isModelHovered ? 1.0 : 0.0)
     );
     uniformsMap.set("circleRadius", new THREE.Uniform(circleRadius));
+    uniformsMap.set("blurRadius", new THREE.Uniform(blurRadius));
+    uniformsMap.set("fisheyeStrength", new THREE.Uniform(fisheyeStrength));
+    uniformsMap.set("edgeWarpAmplitude", new THREE.Uniform(edgeWarpAmplitude));
+    uniformsMap.set("edgeWarpFrequency", new THREE.Uniform(edgeWarpFrequency));
 
     super("PixelationMaskEffect", fragmentShader, {
       blendFunction: BlendFunction.NORMAL,
