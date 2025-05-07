@@ -6,15 +6,10 @@ const models = [
   { name: "Plant", path: "/models/plant.glb", scale: 1 },
   { name: "Silent Ash", path: "/models/silent_ash.glb", scale: 1 },
   {
-    name: "Shiny Fish",
-    path: "/models/shiny_fish.glb",
-    scale: 0.3,
+    name: "Ancient Greek Bakery",
+    path: "/models/dae_villages__ancient_greek_bakery.glb",
+    scale: 1.1,
   },
-  // {
-  //   name: "Pigeon",
-  //   path: "/models/pigeon_quest__the_warrior.glb",
-  //   scale: 0.6,
-  // },
   // {
   //   name: "cyberpunk_laptop_concept_design.glb",
   //   path: "/models/cyberpunk_laptop_concept_design.glb",

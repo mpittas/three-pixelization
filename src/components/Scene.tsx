@@ -1,6 +1,6 @@
 import { Suspense, useRef, useState, useEffect, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { OrbitControls, Environment } from "@react-three/drei";
 import * as THREE from "three";
 import { DirectionalLightHelper, HemisphereLightHelper } from "three";
 import { EffectComposer } from "@react-three/postprocessing";
@@ -70,12 +70,14 @@ export default function MyScene({
         style={{ display: "block", backgroundColor: "#eee" }} // Ensures canvas takes up the div for mouse events
         camera={{ position: [0, 1, 4], fov: 42 }}
       >
-        <ambientLight intensity={2.8} />
+        <Environment preset="city" />
+
+        <ambientLight intensity={0.2} />
 
         <hemisphereLight
           ref={hemisphereLightRef}
           args={[0xadd8e6, 0x8f8f8f]}
-          intensity={5}
+          intensity={0.2}
         />
         {enableDebugHelpers && hemisphereLightRef.current && (
           <primitive
@@ -89,7 +91,7 @@ export default function MyScene({
           ref={directionalLightRef}
           castShadow
           position={[1.5, 3, 2]}
-          intensity={-1}
+          intensity={1.0}
           shadow-mapSize-width={1024}
           shadow-mapSize-height={1024}
           shadow-camera-near={4.4}
@@ -120,7 +122,7 @@ export default function MyScene({
           {" "}
           {/* Adjust Y based on your model */}
           <planeGeometry args={[20, 20]} />
-          <shadowMaterial opacity={0.4} />{" "}
+          <shadowMaterial opacity={0.1} />{" "}
           {/* Adjust opacity for shadow darkness */}
           {/* Or for a visible ground: <meshStandardMaterial color="grey" /> */}
         </mesh>
@@ -129,6 +131,7 @@ export default function MyScene({
           {/* Use the imported Model component */}
           {/* Pass finalScale if you want to control the target scale from here, e.g., finalScale={1} */}
           <Model
+            key={currentModelPath}
             modelPath={currentModelPath}
             position={[0, 0.0, 0]}
             showDebugHelpers={enableDebugHelpers}
@@ -151,7 +154,7 @@ export default function MyScene({
             granularity={10}
             mousePosition={mousePositionVec2}
             isModelHovered={isModelHovered}
-            circleRadius={100} // Increased radius for a bigger mask
+            circleRadius={100} // Increased radius for a bier mask
           />
         </EffectComposer>
       </Canvas>

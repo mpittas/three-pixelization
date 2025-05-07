@@ -41,15 +41,24 @@ export function Model(props: ModelCombinedProps) {
   const animationTimeRef = useRef(0);
   const groupRef = useRef<THREE.Group>(null!);
 
-  // Determine final target scale based on finalScale prop, defaulting to 1
-  let targetScaleValue = 1;
-  if (typeof props.finalScale === "number") {
-    targetScaleValue = props.finalScale;
-  } else if (Array.isArray(props.finalScale)) {
-    targetScaleValue = props.finalScale[0]; // Assuming uniform scaling for simplicity if array
+  // Determine the target for the animation of `animatedScale`.
+  let targetScaleValueForAnimationLogic: number;
+  if (Array.isArray(props.finalScale)) {
+    // If finalScale is an array, group's scale is set directly by its values * fitScale.
+    // animatedScale is not used for the final scale in this case.
+    // For the animation's overshoot calculation, use the first element or default to 1.
+    targetScaleValueForAnimationLogic = props.finalScale[0] ?? 1.0;
+  } else if (typeof props.finalScale === "number") {
+    // If finalScale is a number, use it as the animation target.
+    // This allows the per-model scale from App.tsx to affect the final size.
+    targetScaleValueForAnimationLogic = props.finalScale;
+  } else {
+    // If finalScale is undefined (or not a number/array), default to 1.0.
+    targetScaleValueForAnimationLogic = 1.0;
   }
 
-  const actualOvershootScale = targetScaleValue * OVERSHOOT_SCALE_FACTOR;
+  const actualOvershootScale =
+    targetScaleValueForAnimationLogic * OVERSHOOT_SCALE_FACTOR;
 
   // Store bounding box dimensions for the invisible hover mesh
   const boundingBoxDimensions = useRef<{
@@ -86,12 +95,13 @@ export function Model(props: ModelCombinedProps) {
         const easedProgress = easeInOuQuad(settleProgress);
         currentVal =
           actualOvershootScale +
-          (targetScaleValue - actualOvershootScale) * easedProgress;
+          (targetScaleValueForAnimationLogic - actualOvershootScale) *
+            easedProgress;
       }
 
       if (totalProgress >= 1) {
         animationCompletedRef.current = true;
-        currentVal = targetScaleValue; // Ensure final scale is exact
+        currentVal = targetScaleValueForAnimationLogic; // Ensure final scale is exact
       }
       setAnimatedScale(currentVal);
     }
