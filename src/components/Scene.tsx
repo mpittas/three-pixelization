@@ -67,8 +67,8 @@ export default function MyScene({
       <Canvas
         shadows="soft"
         gl={{ antialias: true }}
-        style={{ display: "block" }} // Ensures canvas takes up the div for mouse events
-        camera={{ position: [0, 1, 4], fov: 40 }}
+        style={{ display: "block", backgroundColor: "#eee" }} // Ensures canvas takes up the div for mouse events
+        camera={{ position: [0, 1, 4], fov: 42 }}
       >
         <ambientLight intensity={2.8} />
 
@@ -151,7 +151,7 @@ export default function MyScene({
             granularity={10}
             mousePosition={mousePositionVec2}
             isModelHovered={isModelHovered}
-            circleRadius={160} // Increased radius for a bigger mask
+            circleRadius={100} // Increased radius for a bigger mask
           />
         </EffectComposer>
       </Canvas>

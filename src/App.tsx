@@ -54,7 +54,7 @@ function App() {
               background:
                 currentModel.path === model.path
                   ? "linear-gradient(90deg, #222 0%, #000 100%)"
-                  : "#e2e5e8",
+                  : "#FFF",
               color: currentModel.path === model.path ? "#fff" : "#222",
               border: "none",
               borderRadius: "999px",
