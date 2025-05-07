@@ -24,9 +24,6 @@ export default function MyScene({
   const hemisphereLightRef = useRef<THREE.HemisphereLight>(null!);
   const enableDebugHelpers = false;
 
-  // State for model hover (to toggle pixelation)
-  const [isModelHovered, setIsModelHovered] = useState(false);
-
   // State for mouse-following circle
   const canvasContainerRef = useRef<HTMLDivElement>(null!);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -37,15 +34,18 @@ export default function MyScene({
     [mousePosition.x, mousePosition.y]
   );
 
+  const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+
   useEffect(() => {
     const container = canvasContainerRef.current;
     if (!container) return;
 
     const handleMouseMove = (event: MouseEvent) => {
       const rect = container.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
       setMousePosition({
-        x: event.clientX - rect.left,
-        y: event.clientY - rect.top,
+        x: (event.clientX - rect.left) * dpr,
+        y: (event.clientY - rect.top) * dpr,
       });
     };
 
@@ -138,8 +138,6 @@ export default function MyScene({
             position={[0, 0.0, 0]}
             showDebugHelpers={enableDebugHelpers}
             finalScale={currentModelScale}
-            onPointerOver={() => setIsModelHovered(true)}
-            onPointerOut={() => setIsModelHovered(false)}
             onModelLoaded={onModelLoaded}
           />
         </Suspense>
@@ -154,13 +152,12 @@ export default function MyScene({
 
         <EffectComposer>
           <PixelationMaskEffect
-            granularity={12}
+            granularity={12 * dpr}
             mousePosition={mousePositionVec2}
-            isModelHovered={isModelHovered}
-            circleRadius={120}
-            blurRadius={0}
+            circleRadius={120 * dpr}
+            blurRadius={1.0 * dpr}
             fisheyeStrength={0.1}
-            edgeWarpAmplitude={6.0}
+            edgeWarpAmplitude={6.0 * dpr}
             edgeWarpFrequency={0.0}
           />
         </EffectComposer>

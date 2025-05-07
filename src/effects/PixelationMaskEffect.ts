@@ -6,7 +6,6 @@ import { wrapEffect } from "@react-three/postprocessing";
 const fragmentShader = `
   uniform float granularity;
   uniform vec2 mousePosition; // DOM pixel coords, Y is 0 at top
-  uniform float isModelHovered;
   uniform float circleRadius; // in pixels
   uniform float blurRadius;   // in pixels, for the smoothstep transition edge
   uniform float fisheyeStrength;  // e.g., 0.1 to 0.5
@@ -65,10 +64,30 @@ const fragmentShader = `
     vec4 originalEffectedColor = texture2D(inputBuffer, sample_uv);
     vec4 pixelatedColor = texture2D(inputBuffer, pixelatedUv);
 
-    if (isModelHovered > 0.5) {
-        outputColor = mix(originalEffectedColor, pixelatedColor, maskAlpha);
+    float effect_inner_radius = circleRadius - blurRadius;
+    float effect_outer_radius = circleRadius + blurRadius;
+    float border_thickness = 5.0; // 5 pixel red border
+
+    // Determine if the current pixel is within the border region
+    bool is_in_border = warped_dist_for_mask > effect_outer_radius &&
+                        warped_dist_for_mask <= effect_outer_radius + border_thickness;
+
+    // Determine if the current pixel is inside the main effect circle (including its blur)
+    bool is_inside_effect_circle = warped_dist_for_mask <= effect_outer_radius;
+
+    if (is_in_border) {
+        outputColor = vec4(1.0, 0.0, 0.0, 1.0); // Red border
+    } else if (is_inside_effect_circle) {
+        // Alpha for mixing between original (possibly fisheyed) and pixelated
+        float mix_alpha = smoothstep(
+            effect_inner_radius,
+            effect_outer_radius,
+            warped_dist_for_mask
+        );
+        outputColor = mix(originalEffectedColor, pixelatedColor, mix_alpha);
     } else {
-        outputColor = pixelatedColor; // Not hovered, fully pixelated
+        // Outside the border and outside the effect circle, so fully pixelated
+        outputColor = pixelatedColor;
     }
   }
 `;
@@ -78,7 +97,6 @@ class PixelationMaskEffectImpl extends Effect {
   constructor({
     granularity = 10,
     mousePosition = new THREE.Vector2(),
-    isModelHovered = false,
     circleRadius = 125,
     blurRadius = 20, // Default from previous edit
     fisheyeStrength = 0.0, // Default to no fisheye
@@ -89,10 +107,6 @@ class PixelationMaskEffectImpl extends Effect {
     const uniformsMap = new Map();
     uniformsMap.set("granularity", new THREE.Uniform(granularity));
     uniformsMap.set("mousePosition", new THREE.Uniform(mousePosition));
-    uniformsMap.set(
-      "isModelHovered",
-      new THREE.Uniform(isModelHovered ? 1.0 : 0.0)
-    );
     uniformsMap.set("circleRadius", new THREE.Uniform(circleRadius));
     uniformsMap.set("blurRadius", new THREE.Uniform(blurRadius));
     uniformsMap.set("fisheyeStrength", new THREE.Uniform(fisheyeStrength));
@@ -106,8 +120,11 @@ class PixelationMaskEffectImpl extends Effect {
   }
 
   update(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _renderer: THREE.WebGLRenderer,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _inputBuffer: THREE.WebGLRenderTarget,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _deltaTime: number
   ): void {
     // This method is required for effects that need to update uniforms every frame
