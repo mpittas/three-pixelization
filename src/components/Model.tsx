@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
-import type { ThreeElements } from "@react-three/fiber";
+import type { ThreeElements, ThreeEvent } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 
@@ -24,8 +24,8 @@ interface ModelOwnProps {
   // finalScale is the target scale after animation. If not provided, defaults to 1 in logic below.
   finalScale?: number | [number, number, number];
   // Add onPointerOver and onPointerOut for hover detection on bounding box
-  onPointerOver?: (event: any) => void;
-  onPointerOut?: (event: any) => void;
+  onPointerOver?: (event: ThreeEvent<PointerEvent>) => void;
+  onPointerOut?: (event: ThreeEvent<PointerEvent>) => void;
   onModelLoaded?: () => void; // New prop for loading indication
 }
 
@@ -39,6 +39,7 @@ export function Model(props: ModelCombinedProps) {
   const { onModelLoaded } = props; // Destructure the new prop
 
   const [animatedScale, setAnimatedScale] = useState(INITIAL_ANIMATION_SCALE);
+  const [isAutoRotationPaused, setIsAutoRotationPaused] = useState(false); // New state for pausing rotation
   const animationCompletedRef = useRef(false);
   const animationTimeRef = useRef(0);
   const groupRef = useRef<THREE.Group>(null!);
@@ -73,6 +74,20 @@ export function Model(props: ModelCombinedProps) {
     if (loadedGLTFScene && onModelLoaded) {
       onModelLoaded();
     }
+
+    // Handle global pointer up to ensure rotation resumes if mouse is released outside the model
+    const handleGlobalPointerUp = (event: PointerEvent) => {
+      if (event.button === 0) {
+        // Left mouse button
+        setIsAutoRotationPaused(false);
+      }
+    };
+
+    window.addEventListener("pointerup", handleGlobalPointerUp);
+
+    return () => {
+      window.removeEventListener("pointerup", handleGlobalPointerUp);
+    };
   }, [loadedGLTFScene, onModelLoaded]);
 
   useFrame((_, delta) => {
@@ -116,7 +131,8 @@ export function Model(props: ModelCombinedProps) {
     // --- End Scale Animation Logic ---
 
     // --- Constant Rotation Logic ---
-    if (groupRef.current) {
+    if (groupRef.current && !isAutoRotationPaused) {
+      // Check isAutoRotationPaused
       groupRef.current.rotation.y += delta * 0.5;
     }
   });
@@ -193,6 +209,14 @@ export function Model(props: ModelCombinedProps) {
           position={[0, 0, 0]}
           onPointerOver={onPointerOver}
           onPointerOut={onPointerOut}
+          onPointerDown={(event: ThreeEvent<PointerEvent>) => {
+            if (event.button === 0) {
+              // Left mouse button
+              event.stopPropagation(); // Prevent OrbitControls if needed, and other higher-level events
+              setIsAutoRotationPaused(true);
+            }
+          }}
+          // onPointerUp is handled globally now
         >
           <boxGeometry
             args={[
