@@ -66,7 +66,7 @@ const fragmentShader = `
 
     float effect_inner_radius = circleRadius - blurRadius;
     float effect_outer_radius = circleRadius + blurRadius;
-    float border_thickness = 5.0; // 5 pixel red border
+    float border_thickness = 3.0; // 5 pixel red border
 
     // Determine if the current pixel is within the border region
     bool is_in_border = warped_dist_for_mask > effect_outer_radius &&
@@ -76,7 +76,7 @@ const fragmentShader = `
     bool is_inside_effect_circle = warped_dist_for_mask <= effect_outer_radius;
 
     if (is_in_border) {
-        outputColor = vec4(1.0, 0.0, 0.0, 1.0); // Red border
+        outputColor = vec4(0.8, 0.8, 0.8, 1.0); // Light grey border
     } else if (is_inside_effect_circle) {
         // Alpha for mixing between original (possibly fisheyed) and pixelated
         float mix_alpha = smoothstep(

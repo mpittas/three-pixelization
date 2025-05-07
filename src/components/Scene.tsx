@@ -154,9 +154,9 @@ export default function MyScene({
           <PixelationMaskEffect
             granularity={12 * dpr}
             mousePosition={mousePositionVec2}
-            circleRadius={120 * dpr}
+            circleRadius={145 * dpr}
             blurRadius={1.0 * dpr}
-            fisheyeStrength={0.1}
+            fisheyeStrength={0.2}
             edgeWarpAmplitude={6.0 * dpr}
             edgeWarpFrequency={0.0}
           />
