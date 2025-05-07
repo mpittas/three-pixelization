@@ -12,11 +12,13 @@ import { PixelationMaskEffect } from "../effects/PixelationMaskEffect"; // Impor
 interface MySceneProps {
   currentModelPath: string;
   currentModelScale: number;
+  onModelLoaded?: () => void;
 }
 
 export default function MyScene({
   currentModelPath,
   currentModelScale,
+  onModelLoaded,
 }: MySceneProps) {
   const directionalLightRef = useRef<THREE.DirectionalLight>(null!);
   const hemisphereLightRef = useRef<THREE.HemisphereLight>(null!);
@@ -138,6 +140,7 @@ export default function MyScene({
             finalScale={currentModelScale}
             onPointerOver={() => setIsModelHovered(true)}
             onPointerOut={() => setIsModelHovered(false)}
+            onModelLoaded={onModelLoaded}
           />
         </Suspense>
 

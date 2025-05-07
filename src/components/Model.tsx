@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import type { ThreeElements } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
@@ -26,6 +26,7 @@ interface ModelOwnProps {
   // Add onPointerOver and onPointerOut for hover detection on bounding box
   onPointerOver?: (event: any) => void;
   onPointerOut?: (event: any) => void;
+  onModelLoaded?: () => void; // New prop for loading indication
 }
 
 // Combine our own props with standard R3F group props (from JSX.IntrinsicElements)
@@ -35,6 +36,7 @@ type ModelCombinedProps = ModelOwnProps &
 
 export function Model(props: ModelCombinedProps) {
   const { scene: loadedGLTFScene } = useGLTF(props.modelPath);
+  const { onModelLoaded } = props; // Destructure the new prop
 
   const [animatedScale, setAnimatedScale] = useState(INITIAL_ANIMATION_SCALE);
   const animationCompletedRef = useRef(false);
@@ -66,6 +68,12 @@ export function Model(props: ModelCombinedProps) {
     center: THREE.Vector3;
     fitScale: number;
   } | null>(null);
+
+  useEffect(() => {
+    if (loadedGLTFScene && onModelLoaded) {
+      onModelLoaded();
+    }
+  }, [loadedGLTFScene, onModelLoaded]);
 
   useFrame((_, delta) => {
     // --- Scale Animation Logic (Simplified) ---
