@@ -27,6 +27,7 @@ interface ModelOwnProps {
   onPointerOver?: (event: ThreeEvent<PointerEvent>) => void;
   onPointerOut?: (event: ThreeEvent<PointerEvent>) => void;
   onModelLoaded?: () => void; // New prop for loading indication
+  isMobile?: boolean; // To control rotation pause behavior
 }
 
 // Combine our own props with standard R3F group props (from JSX.IntrinsicElements)
@@ -36,7 +37,7 @@ type ModelCombinedProps = ModelOwnProps &
 
 export function Model(props: ModelCombinedProps) {
   const { scene: loadedGLTFScene } = useGLTF(props.modelPath);
-  const { onModelLoaded } = props; // Destructure the new prop
+  const { onModelLoaded, isMobile } = props; // Destructure isMobile
 
   const [animatedScale, setAnimatedScale] = useState(INITIAL_ANIMATION_SCALE);
   const [isAutoRotationPaused, setIsAutoRotationPaused] = useState(false); // New state for pausing rotation
@@ -210,7 +211,8 @@ export function Model(props: ModelCombinedProps) {
           onPointerOver={onPointerOver}
           onPointerOut={onPointerOut}
           onPointerDown={(event: ThreeEvent<PointerEvent>) => {
-            if (event.button === 0) {
+            if (event.button === 0 && !isMobile) {
+              // Only pause if not mobile
               // Left mouse button
               event.stopPropagation(); // Prevent OrbitControls if needed, and other higher-level events
               setIsAutoRotationPaused(true);

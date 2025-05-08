@@ -27,6 +27,7 @@ export default function MyScene({
   // State for mouse-following circle
   const canvasContainerRef = useRef<HTMLDivElement>(null!);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isMobile, setIsMobile] = useState(false);
 
   // Create memoized mouse position for shader
   const mousePositionVec2 = useMemo(
@@ -34,27 +35,73 @@ export default function MyScene({
     [mousePosition.x, mousePosition.y]
   );
 
-  const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+  const dpr =
+    typeof window !== "undefined"
+      ? Math.max(1, Math.min(2, window.devicePixelRatio || 1))
+      : 1;
 
   useEffect(() => {
     const container = canvasContainerRef.current;
     if (!container) return;
 
+    // Function to update isMobile state and set initial position if mobile
+    const handleResizeOrInit = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      if (mobile) {
+        // Set initial position for the circle on mobile.
+        // If a touch starts, it will override this.
+        const rect = container.getBoundingClientRect();
+        setMousePosition({
+          x: (rect.width / 2) * dpr,
+          y: (rect.height / 2) * dpr,
+        });
+      }
+    };
+
+    // Handler for mouse movement (desktop)
     const handleMouseMove = (event: MouseEvent) => {
-      const rect = container.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      setMousePosition({
-        x: (event.clientX - rect.left) * dpr,
-        y: (event.clientY - rect.top) * dpr,
-      });
+      if (!isMobile) {
+        // Check the state variable, not window.innerWidth directly
+        const rect = container.getBoundingClientRect();
+        setMousePosition({
+          x: (event.clientX - rect.left) * dpr,
+          y: (event.clientY - rect.top) * dpr,
+        });
+      }
     };
 
+    // Handler for touch events (mobile)
+    const handleTouch = (event: TouchEvent) => {
+      if (isMobile && event.touches.length > 0) {
+        // Check the state variable
+        const touch = event.touches[0];
+        const rect = container.getBoundingClientRect();
+        setMousePosition({
+          x: (touch.clientX - rect.left) * dpr,
+          y: (touch.clientY - rect.top) * dpr,
+        });
+      }
+    };
+
+    // Initial setup
+    handleResizeOrInit();
+
+    // Add event listeners
+    window.addEventListener("resize", handleResizeOrInit);
     container.addEventListener("mousemove", handleMouseMove);
+    // Use { passive: true } for touch events to potentially improve scroll performance
+    container.addEventListener("touchstart", handleTouch, { passive: true });
+    container.addEventListener("touchmove", handleTouch, { passive: true });
 
+    // Cleanup
     return () => {
+      window.removeEventListener("resize", handleResizeOrInit);
       container.removeEventListener("mousemove", handleMouseMove);
+      container.removeEventListener("touchstart", handleTouch);
+      container.removeEventListener("touchmove", handleTouch);
     };
-  }, []);
+  }, [dpr, isMobile]); // Added isMobile to dependency array
 
   return (
     <div
@@ -139,13 +186,15 @@ export default function MyScene({
             showDebugHelpers={enableDebugHelpers}
             finalScale={currentModelScale}
             onModelLoaded={onModelLoaded}
+            isMobile={isMobile}
           />
         </Suspense>
 
         <OrbitControls
-          target={[0, -0.2, 0]}
+          target={[0, 0, 0]}
           enableZoom={false}
           enablePan={false}
+          enableRotate={!isMobile}
           minPolarAngle={Math.PI / 2}
           maxPolarAngle={Math.PI / 2}
         />
@@ -154,10 +203,10 @@ export default function MyScene({
           <PixelationMaskEffect
             granularity={15 * dpr}
             mousePosition={mousePositionVec2}
-            circleRadius={135 * dpr}
-            blurRadius={1.0 * dpr}
+            circleRadius={isMobile ? 110 * dpr : 135 * dpr} // User's preferred mobile radius
+            blurRadius={isMobile ? 0.0 : 20.0 * dpr} // Corrected to number, 0 for mobile sharp edge
             fisheyeStrength={0.1}
-            edgeWarpAmplitude={6.0 * dpr}
+            edgeWarpAmplitude={isMobile ? 3.0 * dpr : 6.0 * dpr}
             edgeWarpFrequency={0.0}
           />
         </EffectComposer>
