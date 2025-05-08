@@ -20,17 +20,29 @@ const globalStyles = `
 `;
 
 const models = [
-  { name: "Plant", path: "/models/plant.glb", scale: 1 },
-  { name: "Silent Ash", path: "/models/silent_ash.glb", scale: 1 },
+  {
+    name: "Plant",
+    path: "/models/plant.glb",
+    desktopScale: 1,
+    mobileScale: 0.8,
+  },
+  {
+    name: "Silent Ash",
+    path: "/models/silent_ash.glb",
+    desktopScale: 1,
+    mobileScale: 0.8,
+  },
   {
     name: "Ancient Greek Bakery",
     path: "/models/dae_villages__ancient_greek_bakery.glb",
-    scale: 1.1,
+    desktopScale: 1.1,
+    mobileScale: 0.9,
   },
   {
     name: "Little Hermit Crab",
     path: "/models/little_hermit_crab.glb",
-    scale: 1,
+    desktopScale: 1,
+    mobileScale: 0.85,
   },
 ];
 
@@ -199,7 +211,9 @@ function App() {
       </div>
       <MyScene
         currentModelPath={currentModel.path}
-        currentModelScale={currentModel.scale}
+        currentModelScale={
+          isMobile ? currentModel.mobileScale : currentModel.desktopScale
+        }
         onModelLoaded={handleModelLoaded}
       />
     </>
