@@ -28,6 +28,9 @@ export default function MyScene({
   const canvasContainerRef = useRef<HTMLDivElement>(null!);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isMobile, setIsMobile] = useState(false);
+  const [isDraggingMask, setIsDraggingMask] = useState(false);
+  const hasDraggedInCurrentMobileSession = useRef(false);
+  const prevIsMobileStateRef = useRef(isMobile); // To detect transition to mobile
 
   // Create memoized mouse position for shader
   const mousePositionVec2 = useMemo(
@@ -40,29 +43,52 @@ export default function MyScene({
       ? Math.max(1, Math.min(2, window.devicePixelRatio || 1))
       : 1;
 
+  // Effect 1: Manages isMobile state based on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      const currentActualMobile = window.innerWidth <= 768;
+      if (currentActualMobile !== isMobile) {
+        setIsMobile(currentActualMobile);
+      }
+    };
+    handleResize(); // Initial check
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [isMobile]); // Dependency ensures it can react if isMobile is set elsewhere
+
+  // Effect 2: Detects transition from desktop to mobile to reset drag flag
+  useEffect(() => {
+    if (isMobile && !prevIsMobileStateRef.current) {
+      // Just transitioned from desktop (false) to mobile (true)
+      hasDraggedInCurrentMobileSession.current = false;
+    }
+    prevIsMobileStateRef.current = isMobile; // Update ref after check for next render
+  }, [isMobile]);
+
+  // Effect 3: Main effect for listeners and initial/conditional centering
   useEffect(() => {
     const container = canvasContainerRef.current;
     if (!container) return;
 
-    // Function to update isMobile state and set initial position if mobile
-    const handleResizeOrInit = () => {
-      const mobile = window.innerWidth <= 768;
-      setIsMobile(mobile);
-      if (mobile) {
-        // Set initial position for the circle on mobile.
-        // If a touch starts, it will override this.
-        const rect = container.getBoundingClientRect();
-        setMousePosition({
-          x: (rect.width / 2) * dpr,
-          y: (rect.height / 2) * dpr,
-        });
-      }
+    // Initial/Conditional Centering Logic
+    if (
+      isMobile &&
+      !hasDraggedInCurrentMobileSession.current &&
+      !isDraggingMask
+    ) {
+      const rect = container.getBoundingClientRect();
+      setMousePosition({
+        x: (rect.width / 2) * dpr,
+        y: (rect.height / 2) * dpr,
+      });
+    }
+
+    const getShaderCircleRadius = () => {
+      return isMobile ? 110 * dpr : 135 * dpr;
     };
 
-    // Handler for mouse movement (desktop)
     const handleMouseMove = (event: MouseEvent) => {
       if (!isMobile) {
-        // Check the state variable, not window.innerWidth directly
         const rect = container.getBoundingClientRect();
         setMousePosition({
           x: (event.clientX - rect.left) * dpr,
@@ -71,10 +97,29 @@ export default function MyScene({
       }
     };
 
-    // Handler for touch events (mobile)
-    const handleTouch = (event: TouchEvent) => {
+    const handleTouchStart = (event: TouchEvent) => {
       if (isMobile && event.touches.length > 0) {
-        // Check the state variable
+        const touch = event.touches[0];
+        const rect = container.getBoundingClientRect();
+        const touchX = (touch.clientX - rect.left) * dpr;
+        const touchY = (touch.clientY - rect.top) * dpr;
+
+        const distance = Math.sqrt(
+          Math.pow(touchX - mousePosition.x, 2) +
+            Math.pow(touchY - mousePosition.y, 2)
+        );
+        const shaderRadius = getShaderCircleRadius();
+
+        if (distance <= shaderRadius) {
+          setIsDraggingMask(true);
+          setMousePosition({ x: touchX, y: touchY });
+          hasDraggedInCurrentMobileSession.current = true; // Mark that a drag has occurred
+        }
+      }
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      if (isMobile && isDraggingMask && event.touches.length > 0) {
         const touch = event.touches[0];
         const rect = container.getBoundingClientRect();
         setMousePosition({
@@ -84,24 +129,28 @@ export default function MyScene({
       }
     };
 
-    // Initial setup
-    handleResizeOrInit();
-
-    // Add event listeners
-    window.addEventListener("resize", handleResizeOrInit);
-    container.addEventListener("mousemove", handleMouseMove);
-    // Use { passive: true } for touch events to potentially improve scroll performance
-    container.addEventListener("touchstart", handleTouch, { passive: true });
-    container.addEventListener("touchmove", handleTouch, { passive: true });
-
-    // Cleanup
-    return () => {
-      window.removeEventListener("resize", handleResizeOrInit);
-      container.removeEventListener("mousemove", handleMouseMove);
-      container.removeEventListener("touchstart", handleTouch);
-      container.removeEventListener("touchmove", handleTouch);
+    const handleTouchEnd = () => {
+      if (isMobile) {
+        setIsDraggingMask(false);
+      }
     };
-  }, [dpr, isMobile]); // Added isMobile to dependency array
+
+    container.addEventListener("mousemove", handleMouseMove);
+    container.addEventListener("touchstart", handleTouchStart, {
+      passive: true,
+    });
+    container.addEventListener("touchmove", handleTouchMove, { passive: true });
+    container.addEventListener("touchend", handleTouchEnd);
+    container.addEventListener("touchcancel", handleTouchEnd);
+
+    return () => {
+      container.removeEventListener("mousemove", handleMouseMove);
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
+      container.removeEventListener("touchend", handleTouchEnd);
+      container.removeEventListener("touchcancel", handleTouchEnd);
+    };
+  }, [dpr, isMobile, isDraggingMask, mousePosition.x, mousePosition.y]);
 
   return (
     <div
@@ -203,9 +252,9 @@ export default function MyScene({
           <PixelationMaskEffect
             granularity={15 * dpr}
             mousePosition={mousePositionVec2}
-            circleRadius={isMobile ? 110 * dpr : 135 * dpr} // User's preferred mobile radius
-            blurRadius={isMobile ? 0.0 : 20.0 * dpr} // Corrected to number, 0 for mobile sharp edge
-            fisheyeStrength={0.1}
+            circleRadius={isMobile ? 110 * dpr : 135 * dpr}
+            blurRadius="0"
+            fisheyeStrength={0.05}
             edgeWarpAmplitude={isMobile ? 3.0 * dpr : 6.0 * dpr}
             edgeWarpFrequency={0.0}
           />
