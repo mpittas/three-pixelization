@@ -66,7 +66,7 @@ const fragmentShader = `
 
     float effect_inner_radius = circleRadius - blurRadius;
     float effect_outer_radius = circleRadius + blurRadius;
-    float border_thickness = 3.0; // 5 pixel red border
+    float border_thickness = 2.0; // 5 pixel red border
 
     // Determine if the current pixel is within the border region
     bool is_in_border = warped_dist_for_mask > effect_outer_radius &&

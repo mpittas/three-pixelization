@@ -152,11 +152,11 @@ export default function MyScene({
 
         <EffectComposer>
           <PixelationMaskEffect
-            granularity={12 * dpr}
+            granularity={15 * dpr}
             mousePosition={mousePositionVec2}
-            circleRadius={145 * dpr}
+            circleRadius={135 * dpr}
             blurRadius={1.0 * dpr}
-            fisheyeStrength={0.2}
+            fisheyeStrength={0.1}
             edgeWarpAmplitude={6.0 * dpr}
             edgeWarpFrequency={0.0}
           />
